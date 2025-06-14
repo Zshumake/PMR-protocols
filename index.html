@@ -1,1351 +1,4 @@
-<hr style="margin: 30px 0;">
-                    
-                    <h4>Existing Categories:</h4>
-                    <div id="categoryList"></div>
-                </div>
-
-                <div id="quicksearchTab" class="tab-content">
-                    <h3>Quick Search Chips Management</h3>
-                    <p style="color: #a0aec0; margin-bottom: 20px;">These are the quick search buttons that appear below the search bar. Users can click them for instant searches.</p>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Add New Quick Search Chip:</label>
-                        <input type="text" class="form-input" id="newChipText" placeholder="e.g., Constipation, Nausea, Falls">
-                        <button class="btn-primary" onclick="addQuickSearchChip()" style="margin-top: 10px;">Add Chip</button>
-                    </div>
-                    
-                    <hr style="margin: 30px 0;">
-                    
-                    <h4>Current Quick Search Chips:</h4>
-                    <div id="quickSearchChipsList"></div>
-                </div>
-
-                <div id="contactsTab" class="tab-content">
-                    <h3>Contact Management</h3>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Contact Category:</label>
-                        <select class="form-select" id="contactCategory">
-                            <option value="">Select Category...</option>
-                            <option value="emergency">Emergency Contacts</option>
-                            <option value="pmrTeam">PM&R Team</option>
-                            <option value="hospitalServices">Hospital Services</option>
-                            <option value="specialists">Specialists</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Contact Name:</label>
-                        <input type="text" class="form-input" id="newContactName" placeholder="e.g., Dr. Johnson">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Contact Role/Info:</label>
-                        <input type="text" class="form-input" id="newContactInfo" placeholder="e.g., Cardiology attending">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Phone Number:</label>
-                        <input type="tel" class="form-input" id="newContactPhone" placeholder="e.g., 555-0123">
-                    </div>
-                    
-                    <button class="btn-primary" onclick="addNewContact()">Add Contact</button>
-                    
-                    <hr style="margin: 30px 0;">
-                    
-                    <h4>Existing Contacts:</h4>
-                    <div id="contactsList"></div>
-                </div>
-
-                <div id="feedbackTab" class="tab-content">
-                    <h3>User Comments & Feedback</h3>
-                    <div id="adminFeedbackList">
-                        <!-- Admin view of all feedback -->
-                    </div>
-                </div>
-
-                <div id="analyticsTab" class="tab-content">
-                    <h3>Usage Analytics</h3>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                        <div style="background: #4a5568; padding: 15px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="totalProtocols">0</div>
-                            <div style="color: #a0aec0; font-size: 0.9rem;">Total Protocols</div>
-                        </div>
-                        <div style="background: #4a5568; padding: 15px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="totalCategories">0</div>
-                            <div style="color: #a0aec0; font-size: 0.9rem;">Categories</div>
-                        </div>
-                        <div style="background: #4a5568; padding: 15px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="totalFeedback">0</div>
-                            <div style="color: #a0aec0; font-size: 0.9rem;">User Feedback</div>
-                        </div>
-                        <div style="background: #4a5568; padding: 15px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="lastUpdate">--</div>
-                            <div style="color: #a0aec0; font-size: 0.9rem;">Last Update</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-
-    <script>
-        // 🔥 FIREBASE CONFIGURATION
-        const firebaseConfig = {
-            apiKey: "AIzaSyCR-xgN_Gn4sAJQhnaUFlSLJrwRfAcSfmI",
-            authDomain: "pmr-protocols.firebaseapp.com",
-            databaseURL: "https://pmr-protocols-default-rtdb.firebaseio.com",
-            projectId: "pmr-protocols",
-            storageBucket: "pmr-protocols.firebasestorage.app",
-            messagingSenderId: "610922775999",
-            appId: "1:610922775999:web:260205aa7cdb490052cd0a",
-            measurementId: "G-Z5JT6ZQD9N"
-        };
-
-        // Initialize Firebase
-        let firebaseInitialized = false;
-        let database = null;
-        
-        function initFirebase() {
-            try {
-                if (!firebaseInitialized) {
-                    firebase.initializeApp(firebaseConfig);
-                    database = firebase.database();
-                    firebaseInitialized = true;
-                    console.log('✅ Firebase initialized successfully');
-                    showStatus('Connected to Firebase database!', 'success');
-                }
-            } catch (error) {
-                console.error('❌ Firebase initialization failed:', error);
-                showStatus('Firebase connection failed. Using local data.', 'error');
-                // Fallback to local data if Firebase fails
-                useLocalData();
-            }
-        }
-
-        // 📊 DATA MANAGEMENT
-        let protocolData = {};
-        let quickSearchChips = ['Pain', 'Foley', 'DVT', 'Fever', 'Anxiety', 'UTI'];
-        let contactData = {
-            emergency: [
-                { id: 'em1', name: "Emergency Department", info: "For immediate transfers", phone: "911" },
-                { id: 'em2', name: "Rapid Response Team", info: "Code Blue activation", phone: "1234" }
-            ],
-            pmrTeam: [
-                { id: 'pmr1', name: "CHG (Charge Nurse)", info: "Primary overnight support", phone: "555-0101" },
-                { id: 'pmr2', name: "Attending on Call", info: "Dr. Smith (This Week)", phone: "555-0102" },
-                { id: 'pmr3', name: "Senior Resident", info: "Backup support", phone: "555-0103" }
-            ],
-            hospitalServices: [
-                { id: 'hs1', name: "Pharmacy", info: "24/7 medication support", phone: "555-0201" },
-                { id: 'hs2', name: "Laboratory", info: "Stat labs and results", phone: "555-0202" },
-                { id: 'hs3', name: "Radiology", info: "Imaging orders and results", phone: "555-0203" }
-            ],
-            specialists: [
-                { id: 'sp1', name: "Neurosurgery", info: "On-call neurosurgeon", phone: "555-0301" },
-                { id: 'sp2', name: "Cardiology", info: "Heart-related emergencies", phone: "555-0302" },
-                { id: 'sp3', name: "Urology", info: "Foley issues, urological emergencies", phone: "555-0303" }
-            ]
-        };
-        let feedbackData = [];
-        let reminderData = [];
-        let currentAdminLevel = null;
-        let reminderInterval = null;
-
-        // 🚀 INITIALIZATION
-        function init() {
-            try {
-                showLoading(true);
-                initFirebase();
-                
-                // Load data from Firebase or use defaults
-                if (firebaseInitialized) {
-                    loadAllDataFromFirebase();
-                } else {
-                    useLocalData();
-                }
-                
-                setupSearch();
-                startReminderCheck();
-                
-                console.log('✅ PM&R Protocol App initialized successfully');
-            } catch (error) {
-                console.error('❌ Error initializing app:', error);
-                showStatus('Error initializing app. Using local data.', 'error');
-                useLocalData();
-            }
-        }
-
-        function useLocalData() {
-            // Fallback data if Firebase isn't available
-            protocolData = {
-                "Pain Management": {
-                    description: "Protocols for acute and chronic pain management",
-                    protocols: [
-                        {
-                            id: 'pm1',
-                            issue: "General pain (back, hip, extremity)",
-                            steps: [
-                                "Assess pain location, severity (0-10), quality, and timing",
-                                "Review current pain medications and last administration time",
-                                "For mild-moderate pain: Trial acetaminophen 650mg q6h or lidocaine patch",
-                                "For severe pain or inadequate response: Consider oxycodone 5mg PRN",
-                                "Avoid opioids if patient confused, fall risk, or respiratory depression",
-                                "Document pain assessment and response to interventions"
-                            ],
-                            createdAt: new Date().toISOString(),
-                            createdBy: 'system'
-                        }
-                    ]
-                },
-                "Urinary Issues": {
-                    description: "Bladder dysfunction, UTIs, and catheter management",
-                    protocols: [
-                        {
-                            id: 'ui1',
-                            issue: "Foley obstruction or no drainage",
-                            steps: [
-                                "Ask RN about last urine output and catheter function",
-                                "Attempt gentle flush with sterile saline",
-                                "Reposition patient and catheter, check for kinks",
-                                "If placed by urology: consult urology for guidance",
-                                "Order foley exchange by RN if recommended by urology"
-                            ],
-                            createdAt: new Date().toISOString(),
-                            createdBy: 'system'
-                        },
-                        {
-                            id: 'ui2',
-                            issue: "Dysuria or suspected UTI",
-                            steps: [
-                                "Order UA and urine culture immediately",
-                                "Check for fever, flank pain, or systemic symptoms",
-                                "If UA positive: start empiric antibiotics (Macrobid preferred)",
-                                "Review prior UCx for resistance patterns",
-                                "Monitor symptom improvement within 48 hours"
-                            ],
-                            createdAt: new Date().toISOString(),
-                            createdBy: 'system'
-                        }
-                    ]
-                },
-                "Infection & Fever": {
-                    description: "Fever workup and antibiotic management",
-                    protocols: [
-                        {
-                            id: 'if1',
-                            issue: "Fever >100.4°F with systemic symptoms",
-                            steps: [
-                                "Order sepsis labs: CBC, CMP, lactate, UA/UCx, BCx x2",
-                                "Assess for source: chest, urine, wound, line",
-                                "Start empiric antibiotics if hemodynamically unstable",
-                                "Consider Zosyn for broad coverage pending cultures",
-                                "Notify CHG if signs of sepsis or hemodynamic instability"
-                            ],
-                            createdAt: new Date().toISOString(),
-                            createdBy: 'system'
-                        }
-                    ]
-                }
-            };
-            displayCategories();
-            updateQuickSearchChips();
-            showLoading(false);
-        }
-
-        // 🔥 FIREBASE DATA OPERATIONS
-        async function loadAllDataFromFirebase() {
-            try {
-                showLoading(true);
-                
-                // Load protocols
-                const protocolsSnapshot = await database.ref('protocols').once('value');
-                if (protocolsSnapshot.exists()) {
-                    protocolData = protocolsSnapshot.val();
-                } else {
-                    // Initialize with default data if no protocols exist
-                    await initializeDefaultData();
-                }
-
-                // Load quick search chips
-                const chipsSnapshot = await database.ref('quickSearchChips').once('value');
-                if (chipsSnapshot.exists()) {
-                    quickSearchChips = chipsSnapshot.val();
-                }
-
-                // Load contacts
-                const contactsSnapshot = await database.ref('contacts').once('value');
-                if (contactsSnapshot.exists()) {
-                    contactData = contactsSnapshot.val();
-                }
-
-                // Load feedback
-                const feedbackSnapshot = await database.ref('feedback').once('value');
-                if (feedbackSnapshot.exists()) {
-                    feedbackData = Object.values(feedbackSnapshot.val());
-                }
-
-                // Load reminders
-                const remindersSnapshot = await database.ref('reminders').once('value');
-                if (remindersSnapshot.exists()) {
-                    reminderData = Object.values(remindersSnapshot.val());
-                }
-
-                displayCategories();
-                updateQuickSearchChips();
-                showLoading(false);
-                showStatus('Data loaded successfully!', 'success');
-                
-            } catch (error) {
-                console.error('❌ Error loading data from Firebase:', error);
-                showStatus('Error loading data. Using local data.', 'error');
-                useLocalData();
-            }
-        }
-
-        async function initializeDefaultData() {
-            try {
-                const defaultData = {
-                    "Pain Management": {
-                        description: "Protocols for acute and chronic pain management",
-                        protocols: [
-                            {
-                                id: 'pm1',
-                                issue: "General pain (back, hip, extremity)",
-                                steps: [
-                                    "Assess pain location, severity (0-10), quality, and timing",
-                                    "Review current pain medications and last administration time",
-                                    "For mild-moderate pain: Trial acetaminophen 650mg q6h or lidocaine patch",
-                                    "For severe pain or inadequate response: Consider oxycodone 5mg PRN",
-                                    "Avoid opioids if patient confused, fall risk, or respiratory depression",
-                                    "Document pain assessment and response to interventions"
-                                ],
-                                createdAt: new Date().toISOString(),
-                                createdBy: 'system'
-                            }
-                        ]
-                    }
-                };
-
-                await database.ref('protocols').set(defaultData);
-                await database.ref('quickSearchChips').set(quickSearchChips);
-                await database.ref('contacts').set(contactData);
-                
-                protocolData = defaultData;
-                console.log('✅ Default data initialized in Firebase');
-                
-            } catch (error) {
-                console.error('❌ Error initializing default data:', error);
-                useLocalData();
-            }
-        }
-
-        async function saveProtocolToFirebase(categoryName, protocol) {
-            if (!firebaseInitialized) {
-                showStatus('Firebase not available. Changes are temporary.', 'error');
-                return false;
-            }
-
-            try {
-                showLoading(true);
-                
-                // Generate unique ID for protocol
-                const protocolId = Date.now().toString();
-                protocol.id = protocolId;
-                protocol.createdAt = new Date().toISOString();
-                protocol.createdBy = currentAdminLevel || 'unknown';
-
-                // Save to Firebase
-                await database.ref(`protocols/${categoryName}/protocols/${protocolId}`).set(protocol);
-                
-                // Update local data
-                if (!protocolData[categoryName]) {
-                    protocolData[categoryName] = { protocols: {} };
-                }
-                if (!protocolData[categoryName].protocols) {
-                    protocolData[categoryName].protocols = {};
-                }
-                protocolData[categoryName].protocols[protocolId] = protocol;
-
-                showLoading(false);
-                showStatus('Protocol saved successfully!', 'success');
-                return true;
-                
-            } catch (error) {
-                console.error('❌ Error saving protocol to Firebase:', error);
-                showLoading(false);
-                showStatus('Error saving protocol to database.', 'error');
-                return false;
-            }
-        }
-
-        async function saveQuickSearchChipsToFirebase() {
-            if (!firebaseInitialized) return false;
-
-            try {
-                await database.ref('quickSearchChips').set(quickSearchChips);
-                showStatus('Quick search chips updated!', 'success');
-                return true;
-            } catch (error) {
-                console.error('❌ Error saving quick search chips:', error);
-                showStatus('Error saving quick search chips.', 'error');
-                return false;
-            }
-        }
-
-        async function saveFeedbackToFirebase(feedback) {
-            if (!firebaseInitialized) {
-                feedbackData.push(feedback);
-                showStatus('Feedback saved locally (Firebase unavailable).', 'info');
-                return false;
-            }
-
-            try {
-                const feedbackId = Date.now().toString();
-                feedback.id = feedbackId;
-                await database.ref(`feedback/${feedbackId}`).set(feedback);
-                feedbackData.push(feedback);
-                showStatus('Feedback submitted successfully!', 'success');
-                return true;
-            } catch (error) {
-                console.error('❌ Error saving feedback:', error);
-                feedbackData.push(feedback);
-                showStatus('Feedback saved locally (database error).', 'error');
-                return false;
-            }
-        }
-
-        // 🎨 UI HELPER FUNCTIONS
-        function showLoading(show) {
-            const spinner = document.getElementById('loadingSpinner');
-            if (spinner) {
-                if (show) {
-                    spinner.classList.add('active');
-                } else {
-                    spinner.classList.remove('active');
-                }
-            }
-        }
-
-        function showStatus(message, type = 'info') {
-            const statusEl = document.getElementById('statusMessage');
-            if (statusEl) {
-                statusEl.textContent = message;
-                statusEl.className = `status-message ${type}`;
-                
-                // Auto-hide after 3 seconds
-                setTimeout(() => {
-                    statusEl.classList.remove(type);
-                }, 3000);
-            }
-        }
-
-        // 📋 DISPLAY FUNCTIONS
-        function displayCategories() {
-            const categoriesSection = document.getElementById('categoriesSection');
-            if (!categoriesSection) return;
-            
-            const categoriesHTML = Object.entries(protocolData).map(([category, data]) => {
-                const protocolCount = data.protocols ? Object.keys(data.protocols).length : 0;
-                return `
-                    <div class="category-card" onclick="showProtocols('${category}')">
-                        <div class="category-title">
-                            📋 ${category}
-                            <span class="category-count">${protocolCount}</span>
-                        </div>
-                        <div class="category-description">${data.description}</div>
-                    </div>
-                `;
-            }).join('');
-            
-            categoriesSection.innerHTML = categoriesHTML;
-        }
-
-        function updateQuickSearchChips() {
-            const quickAccessDiv = document.getElementById('quickAccessChips');
-            if (!quickAccessDiv) return;
-            
-            const chipsHTML = quickSearchChips.map(chip => 
-                `<div class="quick-access-chip" onclick="quickSearch('${chip.toLowerCase()}')">${chip}</div>`
-            ).join('');
-            
-            quickAccessDiv.innerHTML = chipsHTML;
-        }
-
-        // 🔍 SEARCH FUNCTIONALITY
-        function setupSearch() {
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.addEventListener('input', handleSearch);
-            }
-        }
-
-        function handleSearch() {
-            const searchInput = document.getElementById('searchInput');
-            if (!searchInput) return;
-            
-            const query = searchInput.value.toLowerCase().trim();
-            if (query === '') {
-                showCategories();
-                return;
-            }
-            performSearch(query);
-        }
-
-        function quickSearch(term) {
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.value = term;
-                performSearch(term.toLowerCase());
-            }
-        }
-
-        function performSearch(query) {
-            const results = [];
-            Object.entries(protocolData).forEach(([category, data]) => {
-                if (data.protocols) {
-                    Object.values(data.protocols).forEach(protocol => {
-                        if (protocol.issue.toLowerCase().includes(query) || 
-                            protocol.steps.some(step => step.toLowerCase().includes(query))) {
-                            results.push({...protocol, category});
-                        }
-                    });
-                }
-            });
-
-            const categoriesSection = document.getElementById('categoriesSection');
-            const protocolsSection = document.getElementById('protocolsSection');
-            const currentCategoryTitle = document.getElementById('currentCategoryTitle');
-            const protocolsList = document.getElementById('protocolsList');
-
-            if (!categoriesSection || !protocolsSection || !currentCategoryTitle || !protocolsList) return;
-
-            categoriesSection.style.display = 'none';
-            protocolsSection.classList.add('active');
-            currentCategoryTitle.textContent = `Search Results for "${query}"`;
-            
-            if (results.length > 0) {
-                const resultsHTML = results.map((protocol, index) => `
-                    <div class="protocol-item">
-                        <div class="protocol-header" onclick="toggleProtocol(${index})">
-                            <div class="protocol-title">
-                                ${protocol.issue}
-                                <small style="color: #667eea;"> (${protocol.category})</small>
-                            </div>
-                            <div class="expand-icon" id="icon-${index}">+</div>
-                        </div>
-                        <div class="protocol-content" id="content-${index}">
-                            <ol class="protocol-steps">
-                                ${protocol.steps.map(step => `<li>${step}</li>`).join('')}
-                            </ol>
-                        </div>
-                    </div>
-                `).join('');
-                protocolsList.innerHTML = resultsHTML;
-            } else {
-                protocolsList.innerHTML = '<div style="text-align: center; color: #718096; padding: 40px;">No protocols found. Try different keywords.</div>';
-            }
-        }
-
-        // 📋 PROTOCOL DISPLAY FUNCTIONS
-        function showProtocols(category) {
-            const categoriesSection = document.getElementById('categoriesSection');
-            const protocolsSection = document.getElementById('protocolsSection');
-            const currentCategoryTitle = document.getElementById('currentCategoryTitle');
-            const protocolsList = document.getElementById('protocolsList');
-            
-            if (!categoriesSection || !protocolsSection || !currentCategoryTitle || !protocolsList) return;
-            
-            categoriesSection.style.display = 'none';
-            protocolsSection.classList.add('active');
-            currentCategoryTitle.textContent = category;
-            
-            const protocols = protocolData[category].protocols ? Object.values(protocolData[category].protocols) : [];
-            const protocolsHTML = protocols.map((protocol, index) => `
-                <div class="protocol-item">
-                    <div class="protocol-header" onclick="toggleProtocol(${index})">
-                        <div class="protocol-title">${protocol.issue}</div>
-                        <div class="expand-icon" id="icon-${index}">+</div>
-                    </div>
-                    <div class="protocol-content" id="content-${index}">
-                        <ol class="protocol-steps">
-                            ${protocol.steps.map(step => `<li>${step}</li>`).join('')}
-                        </ol>
-                    </div>
-                </div>
-            `).join('');
-            
-            protocolsList.innerHTML = protocolsHTML;
-        }
-
-        function showCategories() {
-            const categoriesSection = document.getElementById('categoriesSection');
-            const protocolsSection = document.getElementById('protocolsSection');
-            
-            if (categoriesSection) categoriesSection.style.display = 'grid';
-            if (protocolsSection) protocolsSection.classList.remove('active');
-        }
-
-        function toggleProtocol(index) {
-            const content = document.getElementById(`content-${index}`);
-            const icon = document.getElementById(`icon-${index}`);
-            
-            if (!content || !icon) return;
-            
-            if (content.classList.contains('active')) {
-                content.classList.remove('active');
-                icon.textContent = '+';
-            } else {
-                content.classList.add('active');
-                icon.textContent = '−';
-            }
-        }
-
-        // 👤 ADMIN FUNCTIONS
-        function showAdminLogin() {
-            const overlay = document.getElementById('adminOverlay');
-            if (overlay) overlay.classList.add('active');
-        }
-
-        function closeAdmin() {
-            const overlay = document.getElementById('adminOverlay');
-            if (overlay) overlay.classList.remove('active');
-        }
-
-        function logoutAdmin() {
-            document.getElementById('adminLogin').style.display = 'block';
-            document.getElementById('adminPanel').style.display = 'none';
-            const passwordField = document.getElementById('adminPassword');
-            if (passwordField) passwordField.value = '';
-            currentAdminLevel = null;
-            closeAdmin();
-        }
-
-        function checkAdminPassword() {
-            const passwordField = document.getElementById('adminPassword');
-            const loginError = document.getElementById('loginError');
-            
-            if (!passwordField || !loginError) return;
-            
-            const password = passwordField.value;
-            
-            if (password === 'CRresAdmin1!' || password === 'SeniorAdmin1!') {
-                currentAdminLevel = password === 'SeniorAdmin1!' ? 'senior' : 'admin';
-                document.getElementById('adminLogin').style.display = 'none';
-                document.getElementById('adminPanel').style.display = 'block';
-                document.getElementById('viewFeedbackTab').style.display = 'block';
-                loginError.style.display = 'none';
-                
-                populateAdminDropdowns();
-                updateAnalyticsDisplay();
-            } else {
-                loginError.innerHTML = '<div style="background: #fed7d7; color: #c53030; padding: 12px; border-radius: 6px;">Incorrect password. Please try again.</div>';
-                loginError.style.display = 'block';
-            }
-        }
-
-        function populateAdminDropdowns() {
-            const categories = Object.keys(protocolData);
-            
-            const newProtocolCategory = document.getElementById('newProtocolCategory');
-            const editProtocolCategory = document.getElementById('editProtocolCategory');
-            
-            if (newProtocolCategory) {
-                newProtocolCategory.innerHTML = '<option value="">Select Category...</option>' + 
-                    categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-            }
-            
-            if (editProtocolCategory) {
-                editProtocolCategory.innerHTML = '<option value="">Select Category...</option>' + 
-                    categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-            }
-        }
-
-        async function addNewProtocol() {
-            const category = document.getElementById('newProtocolCategory').value;
-            const title = document.getElementById('newProtocolTitle').value.trim();
-            const stepsText = document.getElementById('newProtocolSteps').value.trim();
-            
-            if (!category || !title || !stepsText) {
-                showStatus('Please fill in all fields.', 'error');
-                return;
-            }
-            
-            const steps = stepsText.split('\n').map(step => step.trim()).filter(step => step);
-            
-            if (steps.length === 0) {
-                showStatus('Please enter at least one protocol step.', 'error');
-                return;
-            }
-            
-            const newProtocol = {
-                issue: title,
-                steps: steps
-            };
-            
-            const success = await saveProtocolToFirebase(category, newProtocol);
-            
-            if (success) {
-                // Clear form
-                document.getElementById('newProtocolTitle').value = '';
-                document.getElementById('newProtocolSteps').value = '';
-                
-                // Refresh displays
-                displayCategories();
-                updateAnalyticsDisplay();
-            }
-        }
-
-        function showAdminTab(tabName) {
-            document.querySelectorAll('#adminPanel .tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('#adminPanel .tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            if (event && event.target) {
-                event.target.classList.add('active');
-            }
-            
-            const contentDiv = document.getElementById(tabName + 'Tab');
-            if (contentDiv) {
-                contentDiv.classList.add('active');
-            }
-            
-            if (tabName === 'feedback') {
-                displayAdminFeedbackList();
-            } else if (tabName === 'categories') {
-                loadCategoryList();
-            } else if (tabName === 'quicksearch') {
-                loadQuickSearchChipsList();
-            } else if (tabName === 'protocols') {
-                populateAdminDropdowns();
-            } else if (tabName === 'analytics') {
-                updateAnalyticsDisplay();
-            }
-        }
-
-        // 🔍 QUICK SEARCH CHIP MANAGEMENT
-        async function addQuickSearchChip() {
-            const newChipText = document.getElementById('newChipText');
-            if (!newChipText) return;
-            
-            const text = newChipText.value.trim();
-            if (!text) {
-                showStatus('Please enter chip text.', 'error');
-                return;
-            }
-            
-            if (quickSearchChips.includes(text)) {
-                showStatus('This chip already exists.', 'error');
-                return;
-            }
-            
-            quickSearchChips.push(text);
-            newChipText.value = '';
-            
-            await saveQuickSearchChipsToFirebase();
-            updateQuickSearchChips();
-            loadQuickSearchChipsList();
-        }
-
-        function loadQuickSearchChipsList() {
-            const container = document.getElementById('quickSearchChipsList');
-            if (!container) return;
-            
-            if (quickSearchChips.length === 0) {
-                container.innerHTML = '<p style="color: #a0aec0; text-align: center; padding: 20px;">No quick search chips yet.</p>';
-                return;
-            }
-            
-            const chipsHTML = quickSearchChips.map((chip, index) => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #4a5568; border-radius: 8px; margin-bottom: 10px; background: #4a5568;">
-                    <div>
-                        <span style="background: #edf2f7; color: #4a5568; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem;">${chip}</span>
-                    </div>
-                    <button class="btn-danger" onclick="deleteQuickSearchChip(${index})" style="padding: 6px 12px; font-size: 0.8rem;">Delete</button>
-                </div>
-            `).join('');
-            
-            container.innerHTML = chipsHTML;
-        }
-
-        async function deleteQuickSearchChip(index) {
-            if (confirm('Are you sure you want to delete this quick search chip?')) {
-                quickSearchChips.splice(index, 1);
-                await saveQuickSearchChipsToFirebase();
-                updateQuickSearchChips();
-                loadQuickSearchChipsList();
-            }
-        }
-
-        // 📊 ANALYTICS
-        function updateAnalyticsDisplay() {
-            const totalProtocols = Object.values(protocolData).reduce((sum, category) => {
-                return sum + (category.protocols ? Object.keys(category.protocols).length : 0);
-            }, 0);
-            
-            document.getElementById('totalProtocols').textContent = totalProtocols;
-            document.getElementById('totalCategories').textContent = Object.keys(protocolData).length;
-            document.getElementById('totalFeedback').textContent = feedbackData.length;
-            
-            // Find most recent protocol update
-            let lastUpdate = 'Never';
-            Object.values(protocolData).forEach(category => {
-                if (category.protocols) {
-                    Object.values(category.protocols).forEach(protocol => {
-                        if (protocol.createdAt) {
-                            const date = new Date(protocol.createdAt);
-                            lastUpdate = date.toLocaleDateString();
-                        }
-                    });
-                }
-            });
-            document.getElementById('lastUpdate').textContent = lastUpdate;
-        }
-
-        // 📞 CONTACT FUNCTIONS
-        function showContacts() {
-            const overlay = document.getElementById('contactOverlay');
-            const content = document.getElementById('contactContent');
-            
-            if (overlay) overlay.classList.add('active');
-            if (content) {
-                populateContactDirectory();
-            }
-        }
-
-        function closeContacts() {
-            const overlay = document.getElementById('contactOverlay');
-            if (overlay) overlay.classList.remove('active');
-        }
-
-        function populateContactDirectory() {
-            const content = document.getElementById('contactContent');
-            if (!content) return;
-            
-            const emergencyHTML = contactData.emergency ? contactData.emergency.map(contact => createContactHTML(contact)).join('') : '';
-            const pmrTeamHTML = contactData.pmrTeam ? contactData.pmrTeam.map(contact => createContactHTML(contact)).join('') : '';
-            const hospitalHTML = contactData.hospitalServices ? contactData.hospitalServices.map(contact => createContactHTML(contact)).join('') : '';
-            const specialistsHTML = contactData.specialists ? contactData.specialists.map(contact => createContactHTML(contact)).join('') : '';
-            
-            content.innerHTML = `
-                <div style="margin-bottom: 25px;">
-                    <h3 style="color: #c53030; margin-bottom: 15px;">🚨 Emergency Contacts</h3>
-                    <div style="background: #fed7d7; padding: 15px; border-radius: 8px;">
-                        ${emergencyHTML}
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 25px;">
-                    <h3 style="margin-bottom: 15px;">👩‍⚕️ PM&R Team</h3>
-                    ${pmrTeamHTML}
-                </div>
-                
-                <div style="margin-bottom: 25px;">
-                    <h3 style="margin-bottom: 15px;">🏥 Hospital Services</h3>
-                    ${hospitalHTML}
-                </div>
-                
-                <div style="margin-bottom: 25px;">
-                    <h3 style="margin-bottom: 15px;">🩺 Specialists</h3>
-                    ${specialistsHTML}
-                </div>
-            `;
-        }
-
-        function createContactHTML(contact) {
-            return `
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <div><strong>${contact.name}</strong><br>${contact.info}</div>
-                    <a href="tel:${contact.phone}" style="color: #667eea; font-weight: 500;">${contact.phone}</a>
-                </div>
-            `;
-        }
-
-        // 💬 FEEDBACK FUNCTIONS
-        function showFeedback() {
-            const overlay = document.getElementById('feedbackOverlay');
-            if (overlay) {
-                overlay.classList.add('active');
-                if (currentAdminLevel) {
-                    document.getElementById('viewFeedbackTab').style.display = 'block';
-                }
-            }
-        }
-
-        function closeFeedback() {
-            const overlay = document.getElementById('feedbackOverlay');
-            if (overlay) overlay.classList.remove('active');
-        }
-
-        function showFeedbackTab(tabName) {
-            document.querySelectorAll('#feedbackOverlay .tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('#feedbackOverlay .tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            if (event && event.target) {
-                event.target.classList.add('active');
-            }
-            
-            const contentDiv = document.getElementById(tabName + 'FeedbackTab');
-            if (contentDiv) {
-                contentDiv.classList.add('active');
-            }
-            
-            if (tabName === 'view') {
-                displayFeedbackList();
-            }
-        }
-
-        async function submitFeedback() {
-            const type = document.getElementById('feedbackType');
-            const priority = document.getElementById('feedbackPriority');
-            const details = document.getElementById('feedbackDetails');
-            const name = document.getElementById('feedbackName');
-            
-            if (!type || !priority || !details || !name) return;
-            
-            if (!details.value.trim()) {
-                showStatus('Please provide feedback details.', 'error');
-                return;
-            }
-
-            const feedback = {
-                type: type.value,
-                priority: priority.value,
-                details: details.value.trim(),
-                name: name.value.trim() || 'Anonymous',
-                timestamp: new Date().toISOString(),
-                status: 'open'
-            };
-
-            await saveFeedbackToFirebase(feedback);
-            
-            // Clear form
-            details.value = '';
-            name.value = '';
-        }
-
-        function displayFeedbackList() {
-            const feedbackList = document.getElementById('feedbackList');
-            if (!feedbackList) return;
-            
-            if (feedbackData.length === 0) {
-                feedbackList.innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 20px;">No feedback submitted yet.</p>';
-                return;
-            }
-
-            const feedbackHTML = feedbackData
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .map(feedback => `
-                    <div style="border: 1px solid #4a5568; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #4a5568;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                            <div>
-                                <span style="background: #e2e8f0; color: #4a5568; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 10px;">${feedback.type}</span>
-                                <span style="background: ${getPriorityColor(feedback.priority)}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem;">${feedback.priority.toUpperCase()}</span>
-                            </div>
-                            <div style="font-size: 0.8rem; color: #a0aec0;">
-                                ${new Date(feedback.timestamp).toLocaleDateString()} ${new Date(feedback.timestamp).toLocaleTimeString()}
-                            </div>
-                        </div>
-                        <div style="margin-bottom: 10px; line-height: 1.5;">${feedback.details}</div>
-                        <div style="font-size: 0.8rem; color: #a0aec0;"><strong>From:</strong> ${feedback.name}</div>
-                    </div>
-                `).join('');
-            
-            feedbackList.innerHTML = feedbackHTML;
-        }
-
-        function displayAdminFeedbackList() {
-            const adminFeedbackList = document.getElementById('adminFeedbackList');
-            if (!adminFeedbackList) return;
-            
-            if (feedbackData.length === 0) {
-                adminFeedbackList.innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 20px;">No user comments or feedback yet.</p>';
-                return;
-            }
-
-            const feedbackHTML = feedbackData
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .map(feedback => `
-                    <div style="border: 1px solid #4a5568; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #4a5568;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                            <div>
-                                <span style="background: #e2e8f0; color: #4a5568; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 10px;">${feedback.type.replace('-', ' ').toUpperCase()}</span>
-                                <span style="background: ${getPriorityColor(feedback.priority)}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem;">${feedback.priority.toUpperCase()}</span>
-                            </div>
-                            <div style="font-size: 0.8rem; color: #a0aec0;">
-                                ${new Date(feedback.timestamp).toLocaleDateString()} ${new Date(feedback.timestamp).toLocaleTimeString()}
-                            </div>
-                        </div>
-                        <div style="margin-bottom: 10px; line-height: 1.5; font-weight: 500;">${feedback.details}</div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #a0aec0; margin-bottom: 10px;">
-                            <div><strong>From:</strong> ${feedback.name}</div>
-                            <div><strong>Status:</strong> ${feedback.status}</div>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button style="padding: 5px 10px; border: 1px solid #48bb78; background: #4a5568; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: #e2e8f0;" onclick="markFeedbackResolved('${feedback.id}')">Mark Resolved</button>
-                            <button style="padding: 5px 10px; border: 1px solid #e53e3e; background: #4a5568; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: #e2e8f0;" onclick="deleteFeedback('${feedback.id}')">Delete</button>
-                        </div>
-                    </div>
-                `).join('');
-            
-            adminFeedbackList.innerHTML = feedbackHTML;
-        }
-
-        function getPriorityColor(priority) {
-            switch (priority) {
-                case 'low': return '#48bb78';
-                case 'medium': return '#ed8936';
-                case 'high': return '#f56565';
-                default: return '#a0aec0';
-            }
-        }
-
-        async function markFeedbackResolved(id) {
-            const feedback = feedbackData.find(f => f.id === id);
-            if (feedback) {
-                feedback.status = 'resolved';
-                if (firebaseInitialized) {
-                    await database.ref(`feedback/${id}/status`).set('resolved');
-                }
-                displayAdminFeedbackList();
-                showStatus('Feedback marked as resolved.', 'success');
-            }
-        }
-
-        async function deleteFeedback(id) {
-            if (confirm('Are you sure you want to delete this feedback?')) {
-                feedbackData = feedbackData.filter(f => f.id !== id);
-                if (firebaseInitialized) {
-                    await database.ref(`feedback/${id}`).remove();
-                }
-                displayAdminFeedbackList();
-                displayFeedbackList();
-                showStatus('Feedback deleted.', 'success');
-            }
-        }
-
-        // ⏰ REMINDER SYSTEM
-        function showReminders() {
-            const overlay = document.getElementById('reminderOverlay');
-            if (overlay) {
-                overlay.classList.add('active');
-                displayReminders();
-                setDefaultReminderTime();
-            }
-        }
-
-        function closeReminders() {
-            const overlay = document.getElementById('reminderOverlay');
-            if (overlay) overlay.classList.remove('active');
-        }
-
-        function setDefaultReminderTime() {
-            const reminderTime = document.getElementById('reminderTime');
-            if (reminderTime) {
-                const now = new Date();
-                now.setMinutes(now.getMinutes() + 30);
-                reminderTime.value = now.toISOString().slice(0, 16);
-            }
-        }
-
-        async function addReminder() {
-            const reminderText = document.getElementById('reminderText');
-            const reminderTime = document.getElementById('reminderTime');
-            const reminderPriority = document.getElementById('reminderPriority');
-            
-            if (!reminderText || !reminderTime || !reminderPriority) return;
-            
-            const text = reminderText.value.trim();
-            const time = reminderTime.value;
-            const priority = reminderPriority.value;
-            
-            if (!text || !time) {
-                showStatus('Please fill in both reminder text and time.', 'error');
-                return;
-            }
-
-            const reminder = {
-                id: Date.now().toString(),
-                text: text,
-                time: new Date(time),
-                priority: priority,
-                active: true,
-                created: new Date()
-            };
-
-            reminderData.push(reminder);
-            
-            if (firebaseInitialized) {
-                await database.ref(`reminders/${reminder.id}`).set(reminder);
-            }
-            
-            reminderText.value = '';
-            reminderPriority.value = 'normal';
-            setDefaultReminderTime();
-            
-            displayReminders();
-            showStatus('Reminder added successfully!', 'success');
-        }
-
-        function displayReminders() {
-            const reminderList = document.getElementById('reminderList');
-            if (!reminderList) return;
-            
-            const activeReminders = reminderData.filter(r => r.active).sort((a, b) => new Date(a.time) - new Date(b.time));
-            
-            if (activeReminders.length === 0) {
-                reminderList.innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 20px;">No active reminders</p>';
-                return;
-            }
-
-            const reminderHTML = activeReminders.map(reminder => {
-                const timeStr = new Date(reminder.time).toLocaleString();
-                const isUrgent = reminder.priority === 'urgent';
-                
-                return `
-                    <div class="reminder-item ${isUrgent ? 'urgent' : ''}">
-                        <div class="reminder-time">${timeStr} ${isUrgent ? '🔔' : ''}</div>
-                        <div class="reminder-text">${reminder.text}</div>
-                        <div class="reminder-actions">
-                            <button onclick="completeReminder('${reminder.id}')">Mark Complete</button>
-                            <button onclick="deleteReminder('${reminder.id}')">Delete</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            reminderList.innerHTML = reminderHTML;
-        }
-
-        async function completeReminder(id) {
-            const reminder = reminderData.find(r => r.id === id);
-            if (reminder) {
-                reminder.active = false;
-                if (firebaseInitialized) {
-                    await database.ref(`reminders/${id}/active`).set(false);
-                }
-                displayReminders();
-            }
-        }
-
-        async function deleteReminder(id) {
-            if (confirm('Are you sure you want to delete this reminder?')) {
-                reminderData = reminderData.filter(r => r.id !== id);
-                if (firebaseInitialized) {
-                    await database.ref(`reminders/${id}`).remove();
-                }
-                displayReminders();
-            }
-        }
-
-        function startReminderCheck() {
-            reminderInterval = setInterval(checkReminders, 30000);
-        }
-
-        function checkReminders() {
-            const now = new Date();
-            const dueReminders = reminderData.filter(r => r.active && new Date(r.time) <= now);
-            
-            dueReminders.forEach(reminder => {
-                showReminderAlert(reminder);
-                completeReminder(reminder.id);
-            });
-        }
-
-        function showReminderAlert(reminder) {
-            const alertDiv = document.getElementById('reminderAlert');
-            const alertText = document.getElementById('reminderAlertText');
-            
-            if (!alertDiv || !alertText) return;
-            
-            alertText.textContent = `⏰ Reminder: ${reminder.text}`;
-            alertDiv.classList.add('active');
-            
-            if (reminder.priority === 'urgent') {
-                playReminderSound();
-            }
-            
-            setTimeout(() => {
-                if (alertDiv.classList.contains('active')) {
-                    alertDiv.classList.remove('active');
-                }
-            }, 30000);
-        }
-
-        function playReminderSound() {
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-                oscillator.type = 'sine';
-                
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
-            } catch (error) {
-                console.log('Could not play reminder sound:', error);
-            }
-        }
-
-        function dismissReminder() {
-            const alertDiv = document.getElementById('reminderAlert');
-            if (alertDiv) alertDiv.classList.remove('active');
-        }
-
-        function snoozeReminder() {
-            const alertDiv = document.getElementById('reminderAlert');
-            const alertText = document.getElementById('reminderAlertText');
-            
-            if (!alertDiv || !alertText) return;
-            
-            alertDiv.classList.remove('active');
-            
-            const snoozeTime = new Date();
-            snoozeTime.setMinutes(snoozeTime.getMinutes() + 5);
-            
-            const snoozeReminder = {
-                id: Date.now().toString(),
-                text: alertText.textContent.replace('⏰ Reminder: ', '') + ' (Snoozed)',
-                time: snoozeTime,
-                priority: 'urgent',
-                active: true,
-                created: new Date()
-            };
-            
-            addReminderDirectly(snoozeReminder);
-        }
-
-        async function addReminderDirectly(reminder) {
-            reminderData.push(reminder);
-            if (firebaseInitialized) {
-                await database.ref(`reminders/${reminder.id}`).set(reminder);
-            }
-        }
-
-        // 🔄 CATEGORY MANAGEMENT
-        function loadCategoryList() {
-            const container = document.getElementById('categoryList');
-            if (!container) return;
-            
-            const categoriesHTML = Object.entries(protocolData).map(([category, data]) => `
-                <div style="border: 1px solid #4a5568; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #4a5568;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <strong>${category}</strong>
-                            <div style="font-size: 0.8rem; color: #a0aec0;">${data.description}</div>
-                            <div style="font-size: 0.8rem; color: #a0aec0;">${data.protocols ? Object.keys(data.protocols).length : 0} protocols</div>
-                        </div>
-                        <div>
-                            <button class="btn-primary" onclick="editCategory('${category}')" style="margin-right: 10px; padding: 8px 12px; font-size: 0.8rem;">Edit</button>
-                            <button class="btn-danger" onclick="deleteCategory('${category}')" style="padding: 8px 12px; font-size: 0.8rem;">Delete</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-            
-            container.innerHTML = categoriesHTML;
-        }
-
-        async function addNewCategory() {
-            const name = document.getElementById('newCategoryName').value.trim();
-            const description = document.getElementById('newCategoryDescription').value.trim();
-            
-            if (!name) {
-                showStatus('Please enter a category name.', 'error');
-                return;
-            }
-            
-            if (protocolData[name]) {
-                showStatus('Category already exists.', 'error');
-                return;
-            }
-            
-            const newCategory = {
-                description: description || 'No description provided',
-                protocols: {}
-            };
-            
-            protocolData[name] = newCategory;
-            
-            if (firebaseInitialized) {
-                await database.ref(`protocols/${name}`).set(newCategory);
-            }
-            
-            document.getElementById('newCategoryName').value = '';
-            document.getElementById('newCategoryDescription').value = '';
-            
-            displayCategories();
-            populateAdminDropdowns();
-            loadCategoryList();
-            showStatus('Category added successfully!', 'success');
-        }
-
-        function editCategory(categoryName) {
-            // Implementation for editing categories
-            showStatus('Category editing feature coming soon!', 'info');
-        }
-
-        async function deleteCategory(categoryName) {
-            if (confirm(`Are you sure you want to delete "${categoryName}"? This will also delete all protocols in this category.`)) {
-                delete protocolData[categoryName];
-                
-                if (firebaseInitialized) {
-                    await database.ref(`protocols/${categoryName}`).remove();
-                }
-                
-                displayCategories();
-                populateAdminDropdowns();
-                loadCategoryList();
-                showStatus('Category deleted.', 'success');
-            }
-        }
-
-        // 🎨 ACCESSIBILITY FUNCTIONS
-        function toggleDarkMode() {
-            document.body.classList.toggle('light-mode');
-            const btn = document.getElementById('darkModeBtn');
-            if (btn) {
-                if (document.body.classList.contains('light-mode')) {
-                    btn.textContent = '🌙 Night';
-                    btn.classList.remove('active');
-                } else {
-                    btn.textContent = '☀️ Light';
-                    btn.classList.add('active');
-                }
-            }
-        }
-
-        // 🚀 INITIALIZE WHEN PAGE LOADS
-        document.addEventListener('DOMContentLoaded', function() {
-            const darkModeBtn = document.getElementById('darkModeBtn');
-            if (darkModeBtn) {
-                darkModeBtn.classList.add('active');
-            }
-            init();
-        });
-    </script>
-</body>
-</html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2303,3 +956,1390 @@
                     </div>
                     
                     <hr style="margin: 30px 0;">
+                    
+                    <h4>Existing Categories:</h4>
+                    <div id="categoryList"></div>
+                </div>
+
+                <div id="quicksearchTab" class="tab-content">
+                    <h3>Quick Search Chips Management</h3>
+                    <p style="color: #a0aec0; margin-bottom: 20px;">These are the quick search buttons that appear below the search bar. Users can click them for instant searches.</p>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Add New Quick Search Chip:</label>
+                        <input type="text" class="form-input" id="newChipText" placeholder="e.g., Constipation, Nausea, Falls">
+                        <button class="btn-primary" onclick="addQuickSearchChip()" style="margin-top: 10px;">Add Chip</button>
+                    </div>
+                    
+                    <hr style="margin: 30px 0;">
+                    
+                    <h4>Current Quick Search Chips:</h4>
+                    <div id="quickSearchChipsList"></div>
+                </div>
+
+                <div id="contactsTab" class="tab-content">
+                    <h3>Contact Management</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Contact Category:</label>
+                        <select class="form-select" id="contactCategory" onchange="loadContactsForCategory()">
+                            <option value="">Select Category...</option>
+                            <option value="emergency">Emergency Contacts</option>
+                            <option value="pmrTeam">PM&R Team</option>
+                            <option value="hospitalServices">Hospital Services</option>
+                            <option value="specialists">Specialists</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Contact Name:</label>
+                        <input type="text" class="form-input" id="newContactName" placeholder="e.g., Dr. Johnson">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Contact Role/Info:</label>
+                        <input type="text" class="form-input" id="newContactInfo" placeholder="e.g., Cardiology attending">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Phone Number:</label>
+                        <input type="tel" class="form-input" id="newContactPhone" placeholder="e.g., 555-0123">
+                    </div>
+                    
+                    <button class="btn-primary" onclick="addNewContact()">Add Contact</button>
+                    
+                    <hr style="margin: 30px 0;">
+                    
+                    <h4>Existing Contacts:</h4>
+                    <div id="contactsList">
+                        <p style="color: #a0aec0; text-align: center; padding: 20px;">Select a category above to view and manage contacts.</p>
+                    </div>
+                </div>
+
+                <div id="feedbackTab" class="tab-content">
+                    <h3>User Comments & Feedback</h3>
+                    <div id="adminFeedbackList">
+                        <!-- Admin view of all feedback -->
+                    </div>
+                </div>
+
+                <div id="analyticsTab" class="tab-content">
+                    <h3>Usage Analytics</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: #4a5568; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="totalProtocols">0</div>
+                            <div style="color: #a0aec0; font-size: 0.9rem;">Total Protocols</div>
+                        </div>
+                        <div style="background: #4a5568; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="totalCategories">0</div>
+                            <div style="color: #a0aec0; font-size: 0.9rem;">Categories</div>
+                        </div>
+                        <div style="background: #4a5568; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="totalFeedback">0</div>
+                            <div style="color: #a0aec0; font-size: 0.9rem;">User Feedback</div>
+                        </div>
+                        <div style="background: #4a5568; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="lastUpdate">--</div>
+                            <div style="color: #a0aec0; font-size: 0.9rem;">Last Update</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 📊 DATA MANAGEMENT
+        let protocolData = {};
+        let quickSearchChips = ['Pain', 'Foley', 'DVT', 'Fever', 'Anxiety', 'UTI'];
+        let contactData = {
+            emergency: [
+                { id: 'em1', name: "Emergency Department", info: "For immediate transfers", phone: "911" },
+                { id: 'em2', name: "Rapid Response Team", info: "Code Blue activation", phone: "1234" }
+            ],
+            pmrTeam: [
+                { id: 'pmr1', name: "CHG (Charge Nurse)", info: "Primary overnight support", phone: "555-0101" },
+                { id: 'pmr2', name: "Attending on Call", info: "Dr. Smith (This Week)", phone: "555-0102" },
+                { id: 'pmr3', name: "Senior Resident", info: "Backup support", phone: "555-0103" }
+            ],
+            hospitalServices: [
+                { id: 'hs1', name: "Pharmacy", info: "24/7 medication support", phone: "555-0201" },
+                { id: 'hs2', name: "Laboratory", info: "Stat labs and results", phone: "555-0202" },
+                { id: 'hs3', name: "Radiology", info: "Imaging orders and results", phone: "555-0203" }
+            ],
+            specialists: [
+                { id: 'sp1', name: "Neurosurgery", info: "On-call neurosurgeon", phone: "555-0301" },
+                { id: 'sp2', name: "Cardiology", info: "Heart-related emergencies", phone: "555-0302" },
+                { id: 'sp3', name: "Urology", info: "Foley issues, urological emergencies", phone: "555-0303" }
+            ]
+        };
+        let feedbackData = [];
+        let reminderData = [];
+        let currentAdminLevel = null;
+        let reminderInterval = null;
+
+        // 🚀 INITIALIZATION
+        function init() {
+            try {
+                showLoading(true);
+                
+                // Use default local data
+                useLocalData();
+                setupSearch();
+                startReminderCheck();
+                
+                console.log('✅ PM&R Protocol App initialized successfully');
+            } catch (error) {
+                console.error('❌ Error initializing app:', error);
+                showStatus('Error initializing app. Using local data.', 'error');
+                useLocalData();
+            }
+        }
+
+        function useLocalData() {
+            // Fallback data
+            protocolData = {
+                "Pain Management": {
+                    description: "Protocols for acute and chronic pain management",
+                    protocols: {
+                        pm1: {
+                            id: 'pm1',
+                            issue: "General pain (back, hip, extremity)",
+                            steps: [
+                                "Assess pain location, severity (0-10), quality, and timing",
+                                "Review current pain medications and last administration time",
+                                "For mild-moderate pain: Trial acetaminophen 650mg q6h or lidocaine patch",
+                                "For severe pain or inadequate response: Consider oxycodone 5mg PRN",
+                                "Avoid opioids if patient confused, fall risk, or respiratory depression",
+                                "Document pain assessment and response to interventions"
+                            ],
+                            createdAt: new Date().toISOString(),
+                            createdBy: 'system'
+                        }
+                    }
+                },
+                "Urinary Issues": {
+                    description: "Bladder dysfunction, UTIs, and catheter management",
+                    protocols: {
+                        ui1: {
+                            id: 'ui1',
+                            issue: "Foley obstruction or no drainage",
+                            steps: [
+                                "Ask RN about last urine output and catheter function",
+                                "Attempt gentle flush with sterile saline",
+                                "Reposition patient and catheter, check for kinks",
+                                "If placed by urology: consult urology for guidance",
+                                "Order foley exchange by RN if recommended by urology"
+                            ],
+                            createdAt: new Date().toISOString(),
+                            createdBy: 'system'
+                        },
+                        ui2: {
+                            id: 'ui2',
+                            issue: "Dysuria or suspected UTI",
+                            steps: [
+                                "Order UA and urine culture immediately",
+                                "Check for fever, flank pain, or systemic symptoms",
+                                "If UA positive: start empiric antibiotics (Macrobid preferred)",
+                                "Review prior UCx for resistance patterns",
+                                "Monitor symptom improvement within 48 hours"
+                            ],
+                            createdAt: new Date().toISOString(),
+                            createdBy: 'system'
+                        }
+                    }
+                },
+                "Infection & Fever": {
+                    description: "Fever workup and antibiotic management",
+                    protocols: {
+                        if1: {
+                            id: 'if1',
+                            issue: "Fever >100.4°F with systemic symptoms",
+                            steps: [
+                                "Order sepsis labs: CBC, CMP, lactate, UA/UCx, BCx x2",
+                                "Assess for source: chest, urine, wound, line",
+                                "Start empiric antibiotics if hemodynamically unstable",
+                                "Consider Zosyn for broad coverage pending cultures",
+                                "Notify CHG if signs of sepsis or hemodynamic instability"
+                            ],
+                            createdAt: new Date().toISOString(),
+                            createdBy: 'system'
+                        }
+                    }
+                }
+            };
+            displayCategories();
+            updateQuickSearchChips();
+            showLoading(false);
+        }
+
+        // 🎨 UI HELPER FUNCTIONS
+        function showLoading(show) {
+            const spinner = document.getElementById('loadingSpinner');
+            if (spinner) {
+                if (show) {
+                    spinner.classList.add('active');
+                } else {
+                    spinner.classList.remove('active');
+                }
+            }
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            if (statusEl) {
+                statusEl.textContent = message;
+                statusEl.className = `status-message ${type}`;
+                
+                // Auto-hide after 3 seconds
+                setTimeout(() => {
+                    statusEl.classList.remove(type);
+                }, 3000);
+            }
+        }
+
+        // 📋 DISPLAY FUNCTIONS
+        function displayCategories() {
+            const categoriesSection = document.getElementById('categoriesSection');
+            if (!categoriesSection) return;
+            
+            const categoriesHTML = Object.entries(protocolData).map(([category, data]) => {
+                const protocolCount = data.protocols ? Object.keys(data.protocols).length : 0;
+                return `
+                    <div class="category-card" onclick="showProtocols('${category}')">
+                        <div class="category-title">
+                            📋 ${category}
+                            <span class="category-count">${protocolCount}</span>
+                        </div>
+                        <div class="category-description">${data.description}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            categoriesSection.innerHTML = categoriesHTML;
+        }
+
+        function updateQuickSearchChips() {
+            const quickAccessDiv = document.getElementById('quickAccessChips');
+            if (!quickAccessDiv) return;
+            
+            const chipsHTML = quickSearchChips.map(chip => 
+                `<div class="quick-access-chip" onclick="quickSearch('${chip.toLowerCase()}')">${chip}</div>`
+            ).join('');
+            
+            quickAccessDiv.innerHTML = chipsHTML;
+        }
+
+        // 🔍 SEARCH FUNCTIONALITY
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', handleSearch);
+            }
+        }
+
+        function handleSearch() {
+            const searchInput = document.getElementById('searchInput');
+            if (!searchInput) return;
+            
+            const query = searchInput.value.toLowerCase().trim();
+            if (query === '') {
+                showCategories();
+                return;
+            }
+            performSearch(query);
+        }
+
+        function quickSearch(term) {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = term;
+                performSearch(term.toLowerCase());
+            }
+        }
+
+        function performSearch(query) {
+            const results = [];
+            Object.entries(protocolData).forEach(([category, data]) => {
+                if (data.protocols) {
+                    Object.values(data.protocols).forEach(protocol => {
+                        if (protocol.issue.toLowerCase().includes(query) || 
+                            protocol.steps.some(step => step.toLowerCase().includes(query))) {
+                            results.push({...protocol, category});
+                        }
+                    });
+                }
+            });
+
+            const categoriesSection = document.getElementById('categoriesSection');
+            const protocolsSection = document.getElementById('protocolsSection');
+            const currentCategoryTitle = document.getElementById('currentCategoryTitle');
+            const protocolsList = document.getElementById('protocolsList');
+
+            if (!categoriesSection || !protocolsSection || !currentCategoryTitle || !protocolsList) return;
+
+            categoriesSection.style.display = 'none';
+            protocolsSection.classList.add('active');
+            currentCategoryTitle.textContent = `Search Results for "${query}"`;
+            
+            if (results.length > 0) {
+                const resultsHTML = results.map((protocol, index) => `
+                    <div class="protocol-item">
+                        <div class="protocol-header" onclick="toggleProtocol(${index})">
+                            <div class="protocol-title">
+                                ${protocol.issue}
+                                <small style="color: #667eea;"> (${protocol.category})</small>
+                            </div>
+                            <div class="expand-icon" id="icon-${index}">+</div>
+                        </div>
+                        <div class="protocol-content" id="content-${index}">
+                            <ol class="protocol-steps">
+                                ${protocol.steps.map(step => `<li>${step}</li>`).join('')}
+                            </ol>
+                        </div>
+                    </div>
+                `).join('');
+                protocolsList.innerHTML = resultsHTML;
+            } else {
+                protocolsList.innerHTML = '<div style="text-align: center; color: #718096; padding: 40px;">No protocols found. Try different keywords.</div>';
+            }
+        }
+
+        // 📋 PROTOCOL DISPLAY FUNCTIONS
+        function showProtocols(category) {
+            const categoriesSection = document.getElementById('categoriesSection');
+            const protocolsSection = document.getElementById('protocolsSection');
+            const currentCategoryTitle = document.getElementById('currentCategoryTitle');
+            const protocolsList = document.getElementById('protocolsList');
+            
+            if (!categoriesSection || !protocolsSection || !currentCategoryTitle || !protocolsList) return;
+            
+            categoriesSection.style.display = 'none';
+            protocolsSection.classList.add('active');
+            currentCategoryTitle.textContent = category;
+            
+            const protocols = protocolData[category].protocols ? Object.values(protocolData[category].protocols) : [];
+            const protocolsHTML = protocols.map((protocol, index) => `
+                <div class="protocol-item">
+                    <div class="protocol-header" onclick="toggleProtocol(${index})">
+                        <div class="protocol-title">${protocol.issue}</div>
+                        <div class="expand-icon" id="icon-${index}">+</div>
+                    </div>
+                    <div class="protocol-content" id="content-${index}">
+                        <ol class="protocol-steps">
+                            ${protocol.steps.map(step => `<li>${step}</li>`).join('')}
+                        </ol>
+                    </div>
+                </div>
+            `).join('');
+            
+            protocolsList.innerHTML = protocolsHTML;
+        }
+
+        function showCategories() {
+            const categoriesSection = document.getElementById('categoriesSection');
+            const protocolsSection = document.getElementById('protocolsSection');
+            
+            if (categoriesSection) categoriesSection.style.display = 'grid';
+            if (protocolsSection) protocolsSection.classList.remove('active');
+        }
+
+        function toggleProtocol(index) {
+            const content = document.getElementById(`content-${index}`);
+            const icon = document.getElementById(`icon-${index}`);
+            
+            if (!content || !icon) return;
+            
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                icon.textContent = '+';
+            } else {
+                content.classList.add('active');
+                icon.textContent = '−';
+            }
+        }
+
+        // 👤 ADMIN FUNCTIONS
+        function showAdminLogin() {
+            const overlay = document.getElementById('adminOverlay');
+            if (overlay) overlay.classList.add('active');
+        }
+
+        function closeAdmin() {
+            const overlay = document.getElementById('adminOverlay');
+            if (overlay) overlay.classList.remove('active');
+        }
+
+        function logoutAdmin() {
+            document.getElementById('adminLogin').style.display = 'block';
+            document.getElementById('adminPanel').style.display = 'none';
+            const passwordField = document.getElementById('adminPassword');
+            if (passwordField) passwordField.value = '';
+            currentAdminLevel = null;
+            closeAdmin();
+        }
+
+        function checkAdminPassword() {
+            const passwordField = document.getElementById('adminPassword');
+            const loginError = document.getElementById('loginError');
+            
+            if (!passwordField || !loginError) return;
+            
+            const password = passwordField.value;
+            
+            if (password === 'CRresAdmin1!' || password === 'SeniorAdmin1!') {
+                currentAdminLevel = password === 'SeniorAdmin1!' ? 'senior' : 'admin';
+                document.getElementById('adminLogin').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('viewFeedbackTab').style.display = 'block';
+                loginError.style.display = 'none';
+                
+                populateAdminDropdowns();
+                updateAnalyticsDisplay();
+            } else {
+                loginError.innerHTML = '<div style="background: #fed7d7; color: #c53030; padding: 12px; border-radius: 6px;">Incorrect password. Please try again.</div>';
+                loginError.style.display = 'block';
+            }
+        }
+
+        function populateAdminDropdowns() {
+            const categories = Object.keys(protocolData);
+            
+            const newProtocolCategory = document.getElementById('newProtocolCategory');
+            const editProtocolCategory = document.getElementById('editProtocolCategory');
+            
+            if (newProtocolCategory) {
+                newProtocolCategory.innerHTML = '<option value="">Select Category...</option>' + 
+                    categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+            }
+            
+            if (editProtocolCategory) {
+                editProtocolCategory.innerHTML = '<option value="">Select Category...</option>' + 
+                    categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+            }
+        }
+
+        function addNewProtocol() {
+            const category = document.getElementById('newProtocolCategory').value;
+            const title = document.getElementById('newProtocolTitle').value.trim();
+            const stepsText = document.getElementById('newProtocolSteps').value.trim();
+            
+            if (!category || !title || !stepsText) {
+                showStatus('Please fill in all fields.', 'error');
+                return;
+            }
+            
+            const steps = stepsText.split('\n').map(step => step.trim()).filter(step => step);
+            
+            if (steps.length === 0) {
+                showStatus('Please enter at least one protocol step.', 'error');
+                return;
+            }
+            
+            const protocolId = Date.now().toString();
+            const newProtocol = {
+                id: protocolId,
+                issue: title,
+                steps: steps,
+                createdAt: new Date().toISOString(),
+                createdBy: currentAdminLevel || 'admin'
+            };
+            
+            // Initialize protocols object if it doesn't exist
+            if (!protocolData[category]) {
+                protocolData[category] = { protocols: {} };
+            }
+            if (!protocolData[category].protocols) {
+                protocolData[category].protocols = {};
+            }
+            
+            protocolData[category].protocols[protocolId] = newProtocol;
+            
+            // Clear form
+            document.getElementById('newProtocolTitle').value = '';
+            document.getElementById('newProtocolSteps').value = '';
+            
+            // Refresh displays
+            displayCategories();
+            updateAnalyticsDisplay();
+            showStatus('Protocol added successfully!', 'success');
+        }
+
+        function showAdminTab(tabName) {
+            document.querySelectorAll('#adminPanel .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('#adminPanel .tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+            
+            const contentDiv = document.getElementById(tabName + 'Tab');
+            if (contentDiv) {
+                contentDiv.classList.add('active');
+            }
+            
+            if (tabName === 'feedback') {
+                displayAdminFeedbackList();
+            } else if (tabName === 'categories') {
+                loadCategoryList();
+            } else if (tabName === 'quicksearch') {
+                loadQuickSearchChipsList();
+            } else if (tabName === 'protocols') {
+                populateAdminDropdowns();
+            } else if (tabName === 'analytics') {
+                updateAnalyticsDisplay();
+            }
+        }
+
+        // 🗄️ PROTOCOL MANAGEMENT FUNCTIONS
+        function loadProtocolsForEdit() {
+            const category = document.getElementById('editProtocolCategory').value;
+            const container = document.getElementById('protocolEditList');
+            
+            if (!container) return;
+            
+            if (!category) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            const protocols = protocolData[category].protocols ? Object.values(protocolData[category].protocols) : [];
+            
+            if (protocols.length === 0) {
+                container.innerHTML = '<p style="color: #a0aec0; text-align: center; padding: 20px;">No protocols in this category yet.</p>';
+                return;
+            }
+            
+            const protocolsHTML = protocols.map((protocol) => {
+                return `
+                    <div style="border: 1px solid #4a5568; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #4a5568;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <strong style="color: #e2e8f0;">${protocol.issue}</strong>
+                                <div style="font-size: 0.8rem; color: #a0aec0;">${protocol.steps.length} steps</div>
+                            </div>
+                            <div>
+                                <button class="btn-primary" onclick="editProtocol('${category}', '${protocol.id}')" style="margin-right: 10px; padding: 8px 12px; font-size: 0.8rem;">Edit</button>
+                                <button class="btn-danger" onclick="deleteProtocol('${category}', '${protocol.id}')" style="padding: 8px 12px; font-size: 0.8rem;">Delete</button>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.8rem; color: #a0aec0;">
+                            Steps: ${protocol.steps.slice(0, 2).join('; ')}${protocol.steps.length > 2 ? '...' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = protocolsHTML;
+        }
+
+        function editProtocol(category, protocolId) {
+            const protocol = Object.values(protocolData[category].protocols).find(p => p.id === protocolId);
+            if (!protocol) return;
+            
+            const container = document.getElementById('protocolEditList');
+            
+            container.innerHTML = `
+                <div style="background: #4a5568; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                    <h4 style="color: #e2e8f0; margin-bottom: 15px;">Edit Protocol</h4>
+                    <div class="form-group">
+                        <label class="form-label">Protocol Title:</label>
+                        <input type="text" class="form-input" id="editTitle" value="${protocol.issue}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Protocol Steps:</label>
+                        <textarea class="form-textarea" id="editSteps">${protocol.steps.join('\n')}</textarea>
+                    </div>
+                    <button class="btn-primary" onclick="saveEditedProtocol('${category}', '${protocolId}')">Save Changes</button>
+                    <button class="btn-primary" onclick="loadProtocolsForEdit()" style="margin-left: 10px;">Cancel</button>
+                </div>
+            `;
+        }
+
+        function saveEditedProtocol(category, protocolId) {
+            const title = document.getElementById('editTitle').value.trim();
+            const stepsText = document.getElementById('editSteps').value.trim();
+            
+            if (!title || !stepsText) {
+                showStatus('Please fill in all fields.', 'error');
+                return;
+            }
+            
+            const steps = stepsText.split('\n').map(step => step.trim()).filter(step => step);
+            
+            if (steps.length === 0) {
+                showStatus('Please enter at least one protocol step.', 'error');
+                return;
+            }
+            
+            const protocol = Object.values(protocolData[category].protocols).find(p => p.id === protocolId);
+            if (protocol) {
+                protocol.issue = title;
+                protocol.steps = steps;
+                protocol.updatedAt = new Date().toISOString();
+                protocol.updatedBy = currentAdminLevel || 'unknown';
+                
+                showStatus('Protocol updated successfully!', 'success');
+                displayCategories();
+                loadProtocolsForEdit();
+            }
+        }
+
+        function deleteProtocol(category, protocolId) {
+            if (confirm('Are you sure you want to delete this protocol?')) {
+                delete protocolData[category].protocols[protocolId];
+                
+                showStatus('Protocol deleted successfully!', 'success');
+                displayCategories();
+                loadProtocolsForEdit();
+            }
+        }
+
+        // 🔍 QUICK SEARCH CHIP MANAGEMENT
+        function addQuickSearchChip() {
+            const newChipText = document.getElementById('newChipText');
+            if (!newChipText) return;
+            
+            const text = newChipText.value.trim();
+            if (!text) {
+                showStatus('Please enter chip text.', 'error');
+                return;
+            }
+            
+            if (quickSearchChips.includes(text)) {
+                showStatus('This chip already exists.', 'error');
+                return;
+            }
+            
+            quickSearchChips.push(text);
+            newChipText.value = '';
+            
+            showStatus('Quick search chip added successfully!', 'success');
+            updateQuickSearchChips();
+            loadQuickSearchChipsList();
+        }
+
+        function loadQuickSearchChipsList() {
+            const container = document.getElementById('quickSearchChipsList');
+            if (!container) return;
+            
+            if (quickSearchChips.length === 0) {
+                container.innerHTML = '<p style="color: #a0aec0; text-align: center; padding: 20px;">No quick search chips yet.</p>';
+                return;
+            }
+            
+            const chipsHTML = quickSearchChips.map((chip, index) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #4a5568; border-radius: 8px; margin-bottom: 10px; background: #4a5568;">
+                    <div>
+                        <span style="background: #edf2f7; color: #4a5568; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem;">${chip}</span>
+                    </div>
+                    <button class="btn-danger" onclick="deleteQuickSearchChip(${index})" style="padding: 6px 12px; font-size: 0.8rem;">Delete</button>
+                </div>
+            `).join('');
+            
+            container.innerHTML = chipsHTML;
+        }
+
+        function deleteQuickSearchChip(index) {
+            if (confirm('Are you sure you want to delete this quick search chip?')) {
+                quickSearchChips.splice(index, 1);
+                
+                showStatus('Quick search chip deleted successfully!', 'success');
+                updateQuickSearchChips();
+                loadQuickSearchChipsList();
+            }
+        }
+
+        // 📊 ANALYTICS
+        function updateAnalyticsDisplay() {
+            const totalProtocols = Object.values(protocolData).reduce((sum, category) => {
+                return sum + (category.protocols ? Object.keys(category.protocols).length : 0);
+            }, 0);
+            
+            const totalProtocolsEl = document.getElementById('totalProtocols');
+            const totalCategoriesEl = document.getElementById('totalCategories');
+            const totalFeedbackEl = document.getElementById('totalFeedback');
+            const lastUpdateEl = document.getElementById('lastUpdate');
+            
+            if (totalProtocolsEl) totalProtocolsEl.textContent = totalProtocols;
+            if (totalCategoriesEl) totalCategoriesEl.textContent = Object.keys(protocolData).length;
+            if (totalFeedbackEl) totalFeedbackEl.textContent = feedbackData.length;
+            
+            // Find most recent protocol update
+            let lastUpdate = 'Never';
+            let mostRecentDate = null;
+            
+            Object.values(protocolData).forEach(category => {
+                if (category.protocols) {
+                    Object.values(category.protocols).forEach(protocol => {
+                        const protocolDate = protocol.updatedAt || protocol.createdAt;
+                        if (protocolDate) {
+                            const date = new Date(protocolDate);
+                            if (!mostRecentDate || date > mostRecentDate) {
+                                mostRecentDate = date;
+                                lastUpdate = date.toLocaleDateString();
+                            }
+                        }
+                    });
+                }
+            });
+            
+            if (lastUpdateEl) lastUpdateEl.textContent = lastUpdate;
+        }
+
+        // 📞 CONTACT FUNCTIONS
+        function showContacts() {
+            const overlay = document.getElementById('contactOverlay');
+            const content = document.getElementById('contactContent');
+            
+            if (overlay) overlay.classList.add('active');
+            if (content) {
+                populateContactDirectory();
+            }
+        }
+
+        function closeContacts() {
+            const overlay = document.getElementById('contactOverlay');
+            if (overlay) overlay.classList.remove('active');
+        }
+
+        function populateContactDirectory() {
+            const content = document.getElementById('contactContent');
+            if (!content) return;
+            
+            const emergencyHTML = contactData.emergency ? contactData.emergency.map(contact => createContactHTML(contact)).join('') : '';
+            const pmrTeamHTML = contactData.pmrTeam ? contactData.pmrTeam.map(contact => createContactHTML(contact)).join('') : '';
+            const hospitalHTML = contactData.hospitalServices ? contactData.hospitalServices.map(contact => createContactHTML(contact)).join('') : '';
+            const specialistsHTML = contactData.specialists ? contactData.specialists.map(contact => createContactHTML(contact)).join('') : '';
+            
+            content.innerHTML = `
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #c53030; margin-bottom: 15px;">🚨 Emergency Contacts</h3>
+                    <div style="background: #fed7d7; padding: 15px; border-radius: 8px;">
+                        ${emergencyHTML}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <h3 style="margin-bottom: 15px;">👩‍⚕️ PM&R Team</h3>
+                    ${pmrTeamHTML}
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <h3 style="margin-bottom: 15px;">🏥 Hospital Services</h3>
+                    ${hospitalHTML}
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <h3 style="margin-bottom: 15px;">🩺 Specialists</h3>
+                    ${specialistsHTML}
+                </div>
+            `;
+        }
+
+        function createContactHTML(contact) {
+            return `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <div><strong>${contact.name}</strong><br>${contact.info}</div>
+                    <a href="tel:${contact.phone}" style="color: #667eea; font-weight: 500;">${contact.phone}</a>
+                </div>
+            `;
+        }
+
+        function loadContactsForCategory() {
+            const category = document.getElementById('contactCategory').value;
+            const container = document.getElementById('contactsList');
+            
+            if (!container) return;
+            
+            if (!category) {
+                container.innerHTML = '<p style="color: #a0aec0; text-align: center; padding: 20px;">Select a category above to view and manage contacts.</p>';
+                return;
+            }
+            
+            const contacts = contactData[category] || [];
+            
+            if (contacts.length === 0) {
+                container.innerHTML = '<p style="color: #a0aec0; text-align: center; padding: 20px;">No contacts in this category yet.</p>';
+                return;
+            }
+            
+            const contactsHTML = contacts.map(contact => `
+                <div style="border: 1px solid #4a5568; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #4a5568;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #e2e8f0;">${contact.name}</strong>
+                            <div style="font-size: 0.8rem; color: #a0aec0;">${contact.info}</div>
+                            <div style="font-size: 0.8rem; color: #a0aec0;">${contact.phone}</div>
+                        </div>
+                        <div>
+                            <button class="btn-danger" onclick="deleteContact('${category}', '${contact.id}')" style="padding: 8px 12px; font-size: 0.8rem;">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = contactsHTML;
+        }
+
+        function addNewContact() {
+            const category = document.getElementById('contactCategory').value;
+            const name = document.getElementById('newContactName').value.trim();
+            const info = document.getElementById('newContactInfo').value.trim();
+            const phone = document.getElementById('newContactPhone').value.trim();
+            
+            if (!category || !name || !phone) {
+                showStatus('Please fill in category, name, and phone number.', 'error');
+                return;
+            }
+            
+            const contactId = Date.now().toString();
+            const newContact = {
+                id: contactId,
+                name: name,
+                info: info || 'No description',
+                phone: phone
+            };
+            
+            if (!contactData[category]) {
+                contactData[category] = [];
+            }
+            
+            contactData[category].push(newContact);
+            
+            // Clear form
+            document.getElementById('newContactName').value = '';
+            document.getElementById('newContactInfo').value = '';
+            document.getElementById('newContactPhone').value = '';
+            
+            showStatus('Contact added successfully!', 'success');
+            loadContactsForCategory();
+        }
+
+        function deleteContact(category, contactId) {
+            if (confirm('Are you sure you want to delete this contact?')) {
+                contactData[category] = contactData[category].filter(c => c.id !== contactId);
+                showStatus('Contact deleted successfully!', 'success');
+                loadContactsForCategory();
+            }
+        }
+
+        // 💬 FEEDBACK FUNCTIONS
+        function showFeedback() {
+            const overlay = document.getElementById('feedbackOverlay');
+            if (overlay) {
+                overlay.classList.add('active');
+                if (currentAdminLevel) {
+                    document.getElementById('viewFeedbackTab').style.display = 'block';
+                }
+            }
+        }
+
+        function closeFeedback() {
+            const overlay = document.getElementById('feedbackOverlay');
+            if (overlay) overlay.classList.remove('active');
+        }
+
+        function showFeedbackTab(tabName) {
+            document.querySelectorAll('#feedbackOverlay .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('#feedbackOverlay .tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+            
+            const contentDiv = document.getElementById(tabName + 'FeedbackTab');
+            if (contentDiv) {
+                contentDiv.classList.add('active');
+            }
+            
+            if (tabName === 'view') {
+                displayFeedbackList();
+            }
+        }
+
+        function submitFeedback() {
+            const type = document.getElementById('feedbackType');
+            const priority = document.getElementById('feedbackPriority');
+            const details = document.getElementById('feedbackDetails');
+            const name = document.getElementById('feedbackName');
+            
+            if (!type || !priority || !details || !name) return;
+            
+            if (!details.value.trim()) {
+                showStatus('Please provide feedback details.', 'error');
+                return;
+            }
+
+            const feedback = {
+                id: Date.now().toString(),
+                type: type.value,
+                priority: priority.value,
+                details: details.value.trim(),
+                name: name.value.trim() || 'Anonymous',
+                timestamp: new Date().toISOString(),
+                status: 'open'
+            };
+
+            feedbackData.push(feedback);
+            
+            // Clear form
+            details.value = '';
+            name.value = '';
+            
+            showStatus('Feedback submitted successfully!', 'success');
+        }
+
+        function displayFeedbackList() {
+            const feedbackList = document.getElementById('feedbackList');
+            if (!feedbackList) return;
+            
+            if (feedbackData.length === 0) {
+                feedbackList.innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 20px;">No feedback submitted yet.</p>';
+                return;
+            }
+
+            const feedbackHTML = feedbackData
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .map(feedback => `
+                    <div style="border: 1px solid #4a5568; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #4a5568;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <div>
+                                <span style="background: #e2e8f0; color: #4a5568; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 10px;">${feedback.type}</span>
+                                <span style="background: ${getPriorityColor(feedback.priority)}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem;">${feedback.priority.toUpperCase()}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: #a0aec0;">
+                                ${new Date(feedback.timestamp).toLocaleDateString()} ${new Date(feedback.timestamp).toLocaleTimeString()}
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 10px; line-height: 1.5;">${feedback.details}</div>
+                        <div style="font-size: 0.8rem; color: #a0aec0;"><strong>From:</strong> ${feedback.name}</div>
+                    </div>
+                `).join('');
+            
+            feedbackList.innerHTML = feedbackHTML;
+        }
+
+        function displayAdminFeedbackList() {
+            const adminFeedbackList = document.getElementById('adminFeedbackList');
+            if (!adminFeedbackList) return;
+            
+            if (feedbackData.length === 0) {
+                adminFeedbackList.innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 20px;">No user comments or feedback yet.</p>';
+                return;
+            }
+
+            const feedbackHTML = feedbackData
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .map(feedback => `
+                    <div style="border: 1px solid #4a5568; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #4a5568;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <div>
+                                <span style="background: #e2e8f0; color: #4a5568; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 10px;">${feedback.type.replace('-', ' ').toUpperCase()}</span>
+                                <span style="background: ${getPriorityColor(feedback.priority)}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem;">${feedback.priority.toUpperCase()}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: #a0aec0;">
+                                ${new Date(feedback.timestamp).toLocaleDateString()} ${new Date(feedback.timestamp).toLocaleTimeString()}
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 10px; line-height: 1.5; font-weight: 500;">${feedback.details}</div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #a0aec0; margin-bottom: 10px;">
+                            <div><strong>From:</strong> ${feedback.name}</div>
+                            <div><strong>Status:</strong> ${feedback.status}</div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button style="padding: 5px 10px; border: 1px solid #48bb78; background: #4a5568; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: #e2e8f0;" onclick="markFeedbackResolved('${feedback.id}')">Mark Resolved</button>
+                            <button style="padding: 5px 10px; border: 1px solid #e53e3e; background: #4a5568; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: #e2e8f0;" onclick="deleteFeedback('${feedback.id}')">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            
+            adminFeedbackList.innerHTML = feedbackHTML;
+        }
+
+        function getPriorityColor(priority) {
+            switch (priority) {
+                case 'low': return '#48bb78';
+                case 'medium': return '#ed8936';
+                case 'high': return '#f56565';
+                default: return '#a0aec0';
+            }
+        }
+
+        function markFeedbackResolved(id) {
+            const feedback = feedbackData.find(f => f.id === id);
+            if (feedback) {
+                feedback.status = 'resolved';
+                displayAdminFeedbackList();
+                showStatus('Feedback marked as resolved.', 'success');
+            }
+        }
+
+        function deleteFeedback(id) {
+            if (confirm('Are you sure you want to delete this feedback?')) {
+                feedbackData = feedbackData.filter(f => f.id !== id);
+                displayAdminFeedbackList();
+                displayFeedbackList();
+                showStatus('Feedback deleted.', 'success');
+            }
+        }
+
+        // ⏰ REMINDER SYSTEM
+        function showReminders() {
+            const overlay = document.getElementById('reminderOverlay');
+            if (overlay) {
+                overlay.classList.add('active');
+                displayReminders();
+                setDefaultReminderTime();
+            }
+        }
+
+        function closeReminders() {
+            const overlay = document.getElementById('reminderOverlay');
+            if (overlay) overlay.classList.remove('active');
+        }
+
+        function setDefaultReminderTime() {
+            const reminderTime = document.getElementById('reminderTime');
+            if (reminderTime) {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() + 30);
+                reminderTime.value = now.toISOString().slice(0, 16);
+            }
+        }
+
+        function addReminder() {
+            const reminderText = document.getElementById('reminderText');
+            const reminderTime = document.getElementById('reminderTime');
+            const reminderPriority = document.getElementById('reminderPriority');
+            
+            if (!reminderText || !reminderTime || !reminderPriority) return;
+            
+            const text = reminderText.value.trim();
+            const time = reminderTime.value;
+            const priority = reminderPriority.value;
+            
+            if (!text || !time) {
+                showStatus('Please fill in both reminder text and time.', 'error');
+                return;
+            }
+
+            const reminder = {
+                id: Date.now().toString(),
+                text: text,
+                time: new Date(time),
+                priority: priority,
+                active: true,
+                created: new Date()
+            };
+
+            reminderData.push(reminder);
+            
+            reminderText.value = '';
+            reminderPriority.value = 'normal';
+            setDefaultReminderTime();
+            
+            displayReminders();
+            showStatus('Reminder added successfully!', 'success');
+        }
+
+        function displayReminders() {
+            const reminderList = document.getElementById('reminderList');
+            if (!reminderList) return;
+            
+            const activeReminders = reminderData.filter(r => r.active).sort((a, b) => new Date(a.time) - new Date(b.time));
+            
+            if (activeReminders.length === 0) {
+                reminderList.innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 20px;">No active reminders</p>';
+                return;
+            }
+
+            const reminderHTML = activeReminders.map(reminder => {
+                const timeStr = new Date(reminder.time).toLocaleString();
+                const isUrgent = reminder.priority === 'urgent';
+                
+                return `
+                    <div class="reminder-item ${isUrgent ? 'urgent' : ''}">
+                        <div class="reminder-time">${timeStr} ${isUrgent ? '🔔' : ''}</div>
+                        <div class="reminder-text">${reminder.text}</div>
+                        <div class="reminder-actions">
+                            <button onclick="completeReminder('${reminder.id}')">Mark Complete</button>
+                            <button onclick="deleteReminder('${reminder.id}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            reminderList.innerHTML = reminderHTML;
+        }
+
+        function completeReminder(id) {
+            const reminder = reminderData.find(r => r.id === id);
+            if (reminder) {
+                reminder.active = false;
+                displayReminders();
+            }
+        }
+
+        function deleteReminder(id) {
+            if (confirm('Are you sure you want to delete this reminder?')) {
+                reminderData = reminderData.filter(r => r.id !== id);
+                displayReminders();
+            }
+        }
+
+        function startReminderCheck() {
+            reminderInterval = setInterval(checkReminders, 30000);
+        }
+
+        function checkReminders() {
+            const now = new Date();
+            const dueReminders = reminderData.filter(r => r.active && new Date(r.time) <= now);
+            
+            dueReminders.forEach(reminder => {
+                showReminderAlert(reminder);
+                completeReminder(reminder.id);
+            });
+        }
+
+        function showReminderAlert(reminder) {
+            const alertDiv = document.getElementById('reminderAlert');
+            const alertText = document.getElementById('reminderAlertText');
+            
+            if (!alertDiv || !alertText) return;
+            
+            alertText.textContent = `⏰ Reminder: ${reminder.text}`;
+            alertDiv.classList.add('active');
+            
+            if (reminder.priority === 'urgent') {
+                playReminderSound();
+            }
+            
+            setTimeout(() => {
+                if (alertDiv.classList.contains('active')) {
+                    alertDiv.classList.remove('active');
+                }
+            }, 30000);
+        }
+
+        function playReminderSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (error) {
+                console.log('Could not play reminder sound:', error);
+            }
+        }
+
+        function dismissReminder() {
+            const alertDiv = document.getElementById('reminderAlert');
+            if (alertDiv) alertDiv.classList.remove('active');
+        }
+
+        function snoozeReminder() {
+            const alertDiv = document.getElementById('reminderAlert');
+            const alertText = document.getElementById('reminderAlertText');
+            
+            if (!alertDiv || !alertText) return;
+            
+            alertDiv.classList.remove('active');
+            
+            const snoozeTime = new Date();
+            snoozeTime.setMinutes(snoozeTime.getMinutes() + 5);
+            
+            const snoozeReminder = {
+                id: Date.now().toString(),
+                text: alertText.textContent.replace('⏰ Reminder: ', '') + ' (Snoozed)',
+                time: snoozeTime,
+                priority: 'urgent',
+                active: true,
+                created: new Date()
+            };
+            
+            reminderData.push(snoozeReminder);
+        }
+
+        // 🔄 CATEGORY MANAGEMENT
+        function loadCategoryList() {
+            const container = document.getElementById('categoryList');
+            if (!container) return;
+            
+            const categoriesHTML = Object.entries(protocolData).map(([category, data]) => `
+                <div style="border: 1px solid #4a5568; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #4a5568;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #e2e8f0;">${category}</strong>
+                            <div style="font-size: 0.8rem; color: #a0aec0;">${data.description}</div>
+                            <div style="font-size: 0.8rem; color: #a0aec0;">${data.protocols ? Object.keys(data.protocols).length : 0} protocols</div>
+                        </div>
+                        <div>
+                            <button class="btn-primary" onclick="editCategory('${category}')" style="margin-right: 10px; padding: 8px 12px; font-size: 0.8rem;">Edit</button>
+                            <button class="btn-danger" onclick="deleteCategory('${category}')" style="padding: 8px 12px; font-size: 0.8rem;">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = categoriesHTML;
+        }
+
+        function addNewCategory() {
+            const name = document.getElementById('newCategoryName').value.trim();
+            const description = document.getElementById('newCategoryDescription').value.trim();
+            
+            if (!name) {
+                showStatus('Please enter a category name.', 'error');
+                return;
+            }
+            
+            if (protocolData[name]) {
+                showStatus('Category already exists.', 'error');
+                return;
+            }
+            
+            const newCategory = {
+                description: description || 'No description provided',
+                protocols: {}
+            };
+            
+            protocolData[name] = newCategory;
+            
+            showStatus('Category added successfully!', 'success');
+            
+            document.getElementById('newCategoryName').value = '';
+            document.getElementById('newCategoryDescription').value = '';
+            
+            displayCategories();
+            populateAdminDropdowns();
+            loadCategoryList();
+        }
+
+        function editCategory(categoryName) {
+            const category = protocolData[categoryName];
+            if (!category) return;
+            
+            const container = document.getElementById('categoryList');
+            
+            const otherCategoriesHTML = Object.entries(protocolData)
+                .filter(([cat]) => cat !== categoryName)
+                .map(([category, data]) => `
+                    <div style="border: 1px solid #4a5568; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #4a5568;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="color: #e2e8f0;">${category}</strong>
+                                <div style="font-size: 0.8rem; color: #a0aec0;">${data.description}</div>
+                                <div style="font-size: 0.8rem; color: #a0aec0;">${data.protocols ? Object.keys(data.protocols).length : 0} protocols</div>
+                            </div>
+                            <div>
+                                <button class="btn-primary" onclick="editCategory('${category}')" style="margin-right: 10px; padding: 8px 12px; font-size: 0.8rem;">Edit</button>
+                                <button class="btn-danger" onclick="deleteCategory('${category}')" style="padding: 8px 12px; font-size: 0.8rem;">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            
+            container.innerHTML = `
+                <div style="background: #4a5568; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                    <h4 style="color: #e2e8f0; margin-bottom: 15px;">Edit Category: ${categoryName}</h4>
+                    <div class="form-group">
+                        <label class="form-label">Category Name:</label>
+                        <input type="text" class="form-input" id="editCategoryName" value="${categoryName}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category Description:</label>
+                        <input type="text" class="form-input" id="editCategoryDescription" value="${category.description}">
+                    </div>
+                    <button class="btn-primary" onclick="saveEditedCategory('${categoryName}')">Save Changes</button>
+                    <button class="btn-primary" onclick="loadCategoryList()" style="margin-left: 10px;">Cancel</button>
+                </div>
+            ` + otherCategoriesHTML;
+        }
+
+        function saveEditedCategory(oldCategoryName) {
+            const newName = document.getElementById('editCategoryName').value.trim();
+            const newDescription = document.getElementById('editCategoryDescription').value.trim();
+            
+            if (!newName || !newDescription) {
+                showStatus('Please fill in all fields.', 'error');
+                return;
+            }
+            
+            if (newName !== oldCategoryName && protocolData[newName]) {
+                showStatus('Category name already exists.', 'error');
+                return;
+            }
+            
+            // If name changed, update the data structure
+            if (newName !== oldCategoryName) {
+                protocolData[newName] = protocolData[oldCategoryName];
+                delete protocolData[oldCategoryName];
+            }
+            
+            // Update description
+            protocolData[newName].description = newDescription;
+            
+            showStatus('Category updated successfully!', 'success');
+            displayCategories();
+            populateAdminDropdowns();
+            loadCategoryList();
+        }
+
+        function deleteCategory(categoryName) {
+            if (confirm(`Are you sure you want to delete "${categoryName}"? This will also delete all protocols in this category.`)) {
+                delete protocolData[categoryName];
+                
+                showStatus('Category deleted successfully!', 'success');
+                displayCategories();
+                populateAdminDropdowns();
+                loadCategoryList();
+            }
+        }
+
+        // 🎨 ACCESSIBILITY FUNCTIONS
+        function toggleDarkMode() {
+            document.body.classList.toggle('light-mode');
+            const btn = document.getElementById('darkModeBtn');
+            if (btn) {
+                if (document.body.classList.contains('light-mode')) {
+                    btn.textContent = '🌙 Night';
+                    btn.classList.remove('active');
+                } else {
+                    btn.textContent = '☀️ Light';
+                    btn.classList.add('active');
+                }
+            }
+        }
+
+        // 🚀 INITIALIZE WHEN PAGE LOADS
+        document.addEventListener('DOMContentLoaded', function() {
+            const darkModeBtn = document.getElementById('darkModeBtn');
+            if (darkModeBtn) {
+                darkModeBtn.classList.add('active');
+            }
+            init();
+        });
+    </script>
+</body>
+</html>
